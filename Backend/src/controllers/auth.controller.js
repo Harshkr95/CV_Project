@@ -1,7 +1,13 @@
-const jwt=require("jsonwebtoken")
-const bcrypt=require("bcryptjs")
-const userModel=require("../models/user.model")
-const tokenBlacklistModel=require("../models/blacklist.model")
+const jwt = require("jsonwebtoken")
+const bcrypt = require("bcryptjs")
+const userModel = require("../models/user.model")
+const tokenBlacklistModel = require("../models/blacklist.model")
+
+const cookieOptions = {
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000
+    // After a day the browser deletes the cookie, so the user has to log in again.
+}
 
 /**
  * @name registerUserController
@@ -9,50 +15,59 @@ const tokenBlacklistModel=require("../models/blacklist.model")
  * @access public
  */
 
-async function registerUserController(req,res) {
-    const {username,email,password}= req.body
+async function registerUserController(req, res) {
+    try {
+        const { username, email, password } = req.body
 
-    if (!username || !email || !password){
-        return res.status(400).json({
-            message:"not found"
-        })
-    }
-
-    const isUserAlreadyExists= await userModel.findOne({
-        $or:[{username,email}]
-    })
-
-    if(isUserAlreadyExists){
-        return res.status(400).json({
-            message:"user already exists"
-        })
-    }
-
-    const hash= await bcrypt.hash(password,10)
-
-    const user= await userModel.create({
-        username,
-        email,
-        password:hash
-    })
-
-    const token= jwt.sign(
-        { id: user._id, username: user.username },
-        process.env.JWT_SECRET,
-        { expiresIn: "1d" }
-    )
-
-    res.cookie("token",token)
-
-    res.status(201).json({
-        message:"user registered successfully",
-        user: {
-            id: user._id,
-            username: user.username,
-            email: user.email
+        if (!username || !email || !password) {
+            return res.status(400).json({
+                message: "not found"
+            })
         }
-    })//sends this response to the frontend
 
+        // Match an existing user with the same username OR the same email
+        const isUserAlreadyExists = await userModel.findOne({
+            $or: [{ username }, { email }]
+        })
+
+        if (isUserAlreadyExists) {
+            return res.status(400).json({
+                message: "user already exists"
+            })
+        }
+
+        const hash = await bcrypt.hash(password, 10)
+
+        const user = await userModel.create({
+            username,
+            email,
+            password: hash
+        })
+
+        const token = jwt.sign(
+            { id: user._id, username: user.username },
+            process.env.JWT_SECRET,
+            { expiresIn: "1d" }
+        )
+
+        res.cookie("token", token, cookieOptions)
+
+        res.status(201).json({
+            message: "user registered successfully",
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email
+            }
+        })//sends this response to the frontend
+    } catch (err) {
+        console.error(err)
+        // 11000 = duplicate key (when the model has unique fields)
+        if (err.code === 11000) {
+            return res.status(400).json({ message: "user already exists" })
+        }
+        res.status(500).json({ message: "registration failed" })
+    }
 }
 
 /**
@@ -62,36 +77,41 @@ async function registerUserController(req,res) {
  */
 
 async function loginUserController(req, res) {
-    const { email, password } = req.body
+    try {
+        const { email, password } = req.body
 
-    if (!email || !password) {
-        return res.status(400).json({ message: "email and password not found" })
+        if (!email || !password) {
+            return res.status(400).json({ message: "email and password not found" })
+        }
+
+        const user = await userModel.findOne({ email })
+
+        if (!user || !user.password) {
+            return res.status(400).json({ message: "please register first" })
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password)
+
+        if (!isPasswordValid) {
+            return res.status(400).json({ message: "password is not valid" })
+        }
+
+        const token = jwt.sign(
+            { id: user._id, username: user.username },
+            process.env.JWT_SECRET,
+            { expiresIn: "1d" }
+        )
+
+        res.cookie("token", token, cookieOptions)
+
+        res.status(200).json({
+            message: "user logged in successfully",
+            user: { id: user._id, username: user.username, email: user.email }
+        })
+    } catch (err) {
+        console.error(err)
+        res.status(500).json({ message: "login failed" })
     }
-
-    const user = await userModel.findOne({ email })
-
-    if (!user) {
-        return res.status(400).json({ message: "please register first" })
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password)
-
-    if (!isPasswordValid) {
-        return res.status(400).json({ message: "password is not valid" })
-    }
-
-    const token = jwt.sign(
-        { id: user._id, username: user.username },
-        process.env.JWT_SECRET,
-        { expiresIn: "1d" }
-    )
-
-    res.cookie("token", token)
-
-    res.status(200).json({
-        message: "user logged in successfully",
-        user: { id: user._id, username: user.username, email: user.email }
-    })
 }
 
 /**
@@ -100,18 +120,23 @@ async function loginUserController(req, res) {
  * @access public
  */
 
-async function logoutUserController(req,res) {
-    const token=req.cookies.token
+async function logoutUserController(req, res) {
+    try {
+        const token = req.cookies.token
 
-    if(token){
-        await tokenBlacklistModel.create({token})
+        if (token) {
+            await tokenBlacklistModel.create({ token })
+        }
+
+        res.clearCookie("token", cookieOptions)
+
+        res.status(200).json({
+            message: "logout success"
+        })
+    } catch (err) {
+        console.error(err)
+        res.status(500).json({ message: "logout failed" })
     }
-
-    res.clearCookie("token")
-
-    res.status(200).json({
-        message:"logout success"
-    })
 }
 
 /**
@@ -120,17 +145,26 @@ async function logoutUserController(req,res) {
  * @access private
  */
 
-async function getMeUserController(req,res) {
-    const user = await userModel.findById(req.user.id)
+async function getMeUserController(req, res) {
+    try {
+        const user = await userModel.findById(req.user.id)
 
-    res.status(200).json({
-        message: "User details fetched successfully",
-        user: {
-            id: user._id,
-            username: user.username,
-            email: user.email
+        if (!user) {
+            return res.status(404).json({ message: "user not found" })
         }
-    })
+
+        res.status(200).json({
+            message: "User details fetched successfully",
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email
+            }
+        })
+    } catch (err) {
+        console.error(err)
+        res.status(500).json({ message: "failed to fetch user" })
+    }
 }
 
-module.exports={registerUserController,loginUserController,logoutUserController,getMeUserController}
+module.exports = { registerUserController, loginUserController, logoutUserController, getMeUserController }
