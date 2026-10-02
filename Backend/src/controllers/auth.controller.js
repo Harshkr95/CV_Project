@@ -5,8 +5,10 @@ const tokenBlacklistModel = require("../models/blacklist.model")
 
 const cookieOptions = {
     httpOnly: true,
+    secure: true,
+    sameSite: "none",
     maxAge: 24 * 60 * 60 * 1000
-    // After a day the browser deletes the cookie, so the user has to log in again.
+    //1 day
 }
 
 /**
@@ -128,7 +130,11 @@ async function logoutUserController(req, res) {
             await tokenBlacklistModel.create({ token })
         }
 
-        res.clearCookie("token", cookieOptions)
+        res.clearCookie("token", {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none"
+        })
 
         res.status(200).json({
             message: "logout success"
