@@ -8,7 +8,7 @@ app.set("trust proxy", 1) // needed on Render so secure cookies work
 
 app.use(cors({
     origin: [
-        "https://resumeproject-delta.vercel.app",
+        "https://resumeproject-lovat.vercel.app",
         "http://localhost:5173" // Vite dev server
     ],
     credentials: true
