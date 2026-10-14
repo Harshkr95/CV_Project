@@ -125,7 +125,7 @@ async function generateResumePdf({ resume, selfDescription, jobDescription }) {
         - Skills as compact comma-separated lines grouped by category.
         - Education in 1-2 lines per entry.
         - If something does not fit, remove the least relevant content. Do not shrink the font below 9.5pt.
-        ${tooLong ? "- The previous version was TOO LONG. Cut at least 30% of the content: fewer bullets, shorter lines, fewer projects.\n" : ""}
+
         CONTENT RULES:
         - Use only facts present in the resume or self description. Do NOT invent employers, dates, degrees, metrics or skills.
         - Rephrase and reorder to match the job description, and use its keywords where they are truthful.
