@@ -4,7 +4,6 @@ A web application for building and managing resumes / CVs, with a React frontend
 
 **Live demo:** [resumeproject-lovat.vercel.app](https://resumeproject-lovat.vercel.app)
 
-> This repository is a fork of [Harshkr95/CV_Project](https://github.com/Harshkr95/CV_Project). Full credit for the original work goes to its author.
 
 ---
 
@@ -143,5 +142,4 @@ TODO: choose a license (e.g. MIT) and add a `LICENSE` file. Check the original r
 
 ## Acknowledgements
 
-- Original project: [Harshkr95/CV_Project](https://github.com/Harshkr95/CV_Project)
 - Built with [React](https://react.dev/) and [Vite](https://vite.dev/)
